@@ -988,6 +988,59 @@ Event: {\\"type\\":\\"SOME_EVENT\\"}"
 
       countService.send(['foo', 'bar']);
     });
+
+    it('should clear actions history between batches', done => {
+      let transitions = 0;
+      const evenCounts: number[] = [];
+      const oddCounts: number[] = [];
+      const countService = interpret(
+        countMachine.withConfig({
+          actions: {
+            evenAction: ctx => {
+              evenCounts.push(ctx.count);
+            },
+            oddAction: ctx => {
+              oddCounts.push(ctx.count);
+            }
+          }
+        })
+      )
+        .onTransition(state => {
+          transitions++;
+
+          switch (transitions) {
+            // initial state
+            case 1:
+              expect(state.context).toEqual({ count: 0 });
+              break;
+            // transition with batched events
+            case 2:
+              expect(state.value).toEqual('even');
+              expect(state.context).toEqual({ count: 2 });
+              expect(state.actions.map(a => a.type)).toEqual([
+                'evenAction',
+                'oddAction'
+              ]);
+
+              expect(evenCounts).toEqual([1]);
+              expect(oddCounts).toEqual([2]);
+              break;
+            case 3:
+              expect(state.value).toEqual('odd');
+              expect(state.context).toEqual({ count: 3 });
+              expect(state.actions.map(a => a.type)).toEqual(['evenAction']);
+
+              expect(evenCounts).toEqual([1, 3]);
+              expect(oddCounts).toEqual([2]);
+              done();
+              break;
+          }
+        })
+        .start();
+
+      countService.send(['INC', 'INC']);
+      countService.send(['INC']);
+    });
   });
 
   describe('send()', () => {

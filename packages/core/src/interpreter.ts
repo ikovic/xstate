@@ -557,6 +557,10 @@ export class Interpreter<
 
     this.scheduler.schedule(() => {
       let nextState = this.state;
+
+      // clear actions from previous runs
+      nextState.actions = [];
+
       for (const event of events) {
         const { changed } = nextState;
         const _event = toSCXMLEvent(event);
